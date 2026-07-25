@@ -42,9 +42,18 @@ Notify URL (set after deploy): `{BASE_URL}/v1/webhooks/telebirr`
 
 In this monorepo, set **Root Directory** to `visethbackend` (already in `render.yaml`).
 
-1. Build: `npm install` (runs `tsc` via postinstall → creates `dist/`)  
-2. Start: `npm start`  
-3. Health: `/v1/health`  
+**Render settings (do not swap these):**
+
+| Field | Value |
+|---|---|
+| Root Directory | `visethbackend` |
+| Build Command | `npm install` |
+| Start Command | `npm start` |
+
+- Build must **exit** after install/compile. Never put `npm start` in Build — that starts the server and hangs the deploy.
+- Start runs only `node dist/index.js` (dist is created by `postinstall` during `npm install`).
+- Health: `/v1/health`  
+- Set `BASE_URL` to your public Render URL (not localhost).  
 4. Set `FIREBASE_SERVICE_ACCOUNT_JSON`, Telebirr vars (`TELEBIRR_PRIVATE_KEY` as PEM with `\n`), `BASE_URL`, JWT/QR secrets, `CORS_ORIGINS`  
 5. Whitelist Render outbound IP in Telebirr portal if sandbox requires it  
 6. `npm run seed` once from this folder  
