@@ -28,6 +28,11 @@ services:
         sync: false
       - key: TELEBIRR_MODE
         value: sandbox
+      # Hackathon: Flutter Bearer dev:usr_seed_traveler until Firebase client Auth is wired
+      - key: ALLOW_DEV_AUTH
+        value: "true"
+      - key: TELEBIRR_MOCK
+        value: "true"
       - key: TELEBIRR_FABRIC_APP_ID
         sync: false
       - key: TELEBIRR_APP_SECRET

@@ -260,7 +260,7 @@ router.post(
   '/posts/:id/share',
   requireAppAuth,
   asyncHandler(async (req, res) => {
-    res.json(await shareRecap(p(req, 'id')));
+    res.json(await shareRecap(p(req, 'id'), asAppUser(req).userId));
   }),
 );
 

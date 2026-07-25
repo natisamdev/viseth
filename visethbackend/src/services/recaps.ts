@@ -4,9 +4,51 @@ import { id } from '../utils/ids';
 import { nowIso } from '../utils/time';
 import { badRequest, forbidden, notFound } from '../utils/errors';
 import { getAttraction } from './attractions';
+import {
+  buildCulturalTags,
+  getRankedFeedIds,
+  mapAiStatusToRecap,
+  recordAiEvent,
+  reviewReportWithAi,
+  upsertVideoForModeration,
+  type AiEventType,
+} from './culturalFeedAi';
 import { getFeatureFlags, getFollowerTitles, getSettings, getStreakTiers } from './settings';
 import { enrichUserPublic } from './gamification';
 import { getUser, isFollowing } from './users';
+
+async function syncRecapToAi(
+  recap: RecapDoc,
+  opts?: { contentSignals?: Record<string, unknown>; runModeration?: boolean },
+) {
+  const attraction = await getAttraction(recap.attractionId, { allowInactive: true });
+  const author = await getUser(recap.authorId);
+  const mediaUrl =
+    recap.media.find((m) => m.kind === 'video')?.url ??
+    recap.media.find((m) => m.kind === 'image')?.url ??
+    recap.imageUrl ??
+    '';
+  return upsertVideoForModeration({
+    id: recap.id,
+    creatorId: recap.authorId,
+    title: `${attraction.name} — ${recap.body.slice(0, 80)}`,
+    description: recap.body,
+    tags: buildCulturalTags({
+      attractionName: attraction.name,
+      region: attraction.region,
+      category: attraction.category,
+      body: recap.body,
+    }),
+    thumbnailUrl: recap.imageUrl ?? '',
+    mediaUrl,
+    likeCount: recap.likeCount,
+    shareCount: recap.shareCount,
+    commentCount: recap.commentCount,
+    creatorDisplayName: author.displayName,
+    contentSignals: opts?.contentSignals ?? { is_cultural: true },
+    runModeration: opts?.runModeration !== false,
+  });
+}
 
 export async function createRecap(input: {
   authorId: string;
@@ -58,6 +100,15 @@ export async function createRecap(input: {
     visitedOn,
     createdAt: nowIso(),
   };
+
+  // Cultural AI: NSFW + non-cultural gate before feed eligibility
+  const ai = await syncRecapToAi(recap);
+  if (ai) {
+    const mapped = mapAiStatusToRecap(ai.status);
+    recap.status = mapped.status;
+    recap.removalReason = mapped.removalReason ?? ai.ban_explanation.slice(0, 200);
+  }
+
   await db().collection('recap_posts').doc(recap.id).set(recap);
   return recap;
 }
@@ -78,7 +129,11 @@ export async function deleteRecap(recapId: string, authorId: string) {
     .set({ status: 'removed', removalReason: 'author_deleted' }, { merge: true });
 }
 
-async function serializeFeedItem(recap: RecapDoc, viewerId?: string) {
+async function serializeFeedItem(
+  recap: RecapDoc,
+  viewerId?: string,
+  feedScore?: number,
+) {
   const author = await getUser(recap.authorId);
   const settings = await getSettings();
   const tiers = await getStreakTiers();
@@ -113,6 +168,7 @@ async function serializeFeedItem(recap: RecapDoc, viewerId?: string) {
     likedByMe,
     visitedOn: recap.visitedOn,
     createdAt: recap.createdAt,
+    feedScore: feedScore ?? null,
     attraction: {
       id: attraction.id,
       name: attraction.name,
@@ -145,14 +201,66 @@ export async function getFeed(tab: 'for_you' | 'following', viewerId: string) {
       follows.docs.map((d) => (d.data() as { followeeId: string }).followeeId),
     );
     posts = posts.filter((p) => followeeIds.has(p.authorId));
+    posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  } else {
+    // Best-effort: ensure AI store knows about published posts (cold start / re-sync)
+    await Promise.all(
+      posts.slice(0, 40).map(async (p) => {
+        try {
+          await syncRecapToAi(p, { runModeration: false });
+        } catch {
+          /* ignore per-post sync errors */
+        }
+      }),
+    );
+
+    const ranked = await getRankedFeedIds(viewerId, 40);
+    if (ranked.length > 0) {
+      const byId = new Map(posts.map((p) => [p.id, p]));
+      const scoreById = new Map(ranked.map((r) => [r.id, r.feed_score]));
+      const ordered: RecapDoc[] = [];
+      for (const item of ranked) {
+        const post = byId.get(item.id);
+        if (post) {
+          ordered.push(post);
+          byId.delete(item.id);
+        }
+      }
+      // Append any published posts AI didn't return (still chronological)
+      const rest = [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      posts = [...ordered, ...rest];
+
+      const items: Awaited<ReturnType<typeof serializeFeedItem>>[] = [];
+      for (const post of posts) {
+        items.push(await serializeFeedItem(post, viewerId, scoreById.get(post.id)));
+      }
+      return items;
+    }
+
+    posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
-  posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const items: Awaited<ReturnType<typeof serializeFeedItem>>[] = [];
   for (const post of posts) {
     items.push(await serializeFeedItem(post, viewerId));
   }
   return items;
+}
+
+export async function recordFeedEvent(input: {
+  userId: string;
+  postId: string;
+  type: AiEventType;
+  watchRatio?: number;
+}) {
+  await getRecap(input.postId);
+  const ok = await recordAiEvent({
+    userId: input.userId,
+    videoId: input.postId,
+    type: input.type,
+    watchRatio: input.watchRatio,
+  });
+  return { ok, type: input.type };
 }
 
 export async function likeRecap(userId: string, recapId: string) {
@@ -167,6 +275,7 @@ export async function likeRecap(userId: string, recapId: string) {
       { merge: true },
     );
   });
+  void recordAiEvent({ userId, videoId: recapId, type: 'like' });
 }
 
 export async function unlikeRecap(userId: string, recapId: string) {
@@ -182,12 +291,13 @@ export async function unlikeRecap(userId: string, recapId: string) {
   });
 }
 
-export async function shareRecap(recapId: string) {
+export async function shareRecap(recapId: string, userId?: string) {
   const recap = await getRecap(recapId);
   await db()
     .collection('recap_posts')
     .doc(recapId)
     .set({ shareCount: FieldValue.increment(1) }, { merge: true });
+  if (userId) void recordAiEvent({ userId, videoId: recapId, type: 'share' });
   return {
     shareCount: recap.shareCount + 1,
     shareUrl: `https://viseth.et/r/${recapId}`,
@@ -225,6 +335,7 @@ export async function addComment(recapId: string, authorId: string, body: string
     .collection('recap_posts')
     .doc(recapId)
     .set({ commentCount: FieldValue.increment(1) }, { merge: true });
+  void recordAiEvent({ userId: authorId, videoId: recapId, type: 'comment' });
   return comment;
 }
 
@@ -238,16 +349,58 @@ export async function createReport(input: {
 }) {
   let reportedUserId: string | null = null;
   let contentPreview = '';
+  let aiDecision: string | null = null;
+  let aiExplanation: string | null = null;
+  let status = 'open';
+
   if (input.contentType === 'recap') {
     const recap = await getRecap(input.targetId);
     reportedUserId = recap.authorId;
     contentPreview = recap.body.slice(0, 160);
+
+    // Ensure AI has the video, then run report review
+    await syncRecapToAi(recap);
+    const reason =
+      input.category === 'sexual_abuse'
+        ? 'nsfw'
+        : input.notes?.toLowerCase().includes('lip') ||
+            input.notes?.toLowerCase().includes('dance') ||
+            input.notes?.toLowerCase().includes('meme')
+          ? 'non_cultural'
+          : input.category === 'violence'
+            ? 'violence'
+            : 'inappropriate';
+
+    const ai = await reviewReportWithAi({
+      reporterId: input.reporterUserId,
+      videoId: recap.id,
+      reason,
+      details: input.notes ?? input.category,
+    });
+
     const reportCount = recap.reportCount + 1;
-    const patch: Partial<RecapDoc> = {
+    const patch: Partial<RecapDoc> & Record<string, unknown> = {
       reportCount,
       reportReasons: [...recap.reportReasons, input.category],
     };
-    if (reportCount >= 3 && recap.status === 'published') patch.status = 'flagged';
+
+    if (ai) {
+      aiDecision = ai.ai_decision;
+      aiExplanation = ai.ai_explanation;
+      if (ai.ai_decision === 'ban' || ai.video_status === 'auto_banned') {
+        patch.status = 'removed';
+        patch.removalReason = ai.ai_explanation?.slice(0, 200) || 'ai_report_ban';
+        status = 'auto_resolved';
+      } else if (ai.ai_decision === 'escalate') {
+        patch.status = 'flagged';
+        status = 'escalated';
+      } else if (ai.ai_decision === 'dismiss') {
+        status = 'auto_resolved';
+      }
+    } else if (reportCount >= 3 && recap.status === 'published') {
+      patch.status = 'flagged';
+    }
+
     await db().collection('recap_posts').doc(recap.id).set(patch, { merge: true });
   }
 
@@ -255,20 +408,27 @@ export async function createReport(input: {
     id: id('rpt'),
     category: input.category,
     contentType: input.contentType,
-    status: 'open',
+    status,
     reporterUserId: input.reporterUserId,
     reportedUserId,
     targetId: input.targetId,
     postId: input.postId ?? input.targetId,
     contentPreview,
     notes: input.notes ?? '',
+    aiDecision,
+    aiExplanation,
     resolutionNote: null,
     resolvedByAdminId: null,
     createdAt: nowIso(),
-    resolvedAt: null,
+    resolvedAt: status === 'auto_resolved' ? nowIso() : null,
   };
   await db().collection('social_reports').doc(report.id).set(report);
-  return { id: report.id, status: report.status };
+  return {
+    id: report.id,
+    status: report.status,
+    aiDecision,
+    aiExplanation,
+  };
 }
 
 // re-export for feed serializer convenience

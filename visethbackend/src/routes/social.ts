@@ -13,6 +13,7 @@ import {
   getRecap,
   likeRecap,
   listComments,
+  recordFeedEvent,
   shareRecap,
   unlikeRecap,
 } from '../services/recaps';
@@ -147,6 +148,28 @@ router.get(
   }),
 );
 
+/** Engagement events for cultural For You personalization (watch / skip / favorite). */
+router.post(
+  '/feed/events',
+  requireAppAuth,
+  asyncHandler(async (req, res) => {
+    const body = z
+      .object({
+        postId: z.string().min(1),
+        type: z.enum(['like', 'share', 'comment', 'favorite', 'watch', 'skip']),
+        watchRatio: z.number().min(0).max(1).optional(),
+      })
+      .parse(req.body);
+    const result = await recordFeedEvent({
+      userId: asAppUser(req).userId,
+      postId: body.postId,
+      type: body.type,
+      watchRatio: body.watchRatio,
+    });
+    res.status(201).json(result);
+  }),
+);
+
 router.post(
   '/recaps',
   requireAppAuth,
@@ -208,7 +231,7 @@ router.post(
   '/recaps/:id/share',
   requireAppAuth,
   asyncHandler(async (req, res) => {
-    res.json(await shareRecap(p(req, 'id')));
+    res.json(await shareRecap(p(req, 'id'), asAppUser(req).userId));
   }),
 );
 

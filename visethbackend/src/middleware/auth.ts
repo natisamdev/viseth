@@ -26,7 +26,11 @@ export async function requireAppAuth(req: Request, _res: Response, next: NextFun
     const token = header.slice(7);
 
     // Dev bypass: Authorization: Bearer dev:<userId|firebaseUid|role>
-    if (env.nodeEnv !== 'production' && token.startsWith('dev:')) {
+    // Also when ALLOW_DEV_AUTH / mock payments (hackathon on Render).
+    if (
+      (env.nodeEnv !== 'production' || env.allowDevAuth) &&
+      token.startsWith('dev:')
+    ) {
       const key = token.slice(4);
       const byId = await db().collection('users').doc(key).get();
       let userDoc = byId.exists ? (byId.data() as import('../types').UserDoc) : null;

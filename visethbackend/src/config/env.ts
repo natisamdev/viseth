@@ -2,6 +2,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 
 dotenv.config();
+// Also load monorepo-root .env when running from visethbackend/visethbackend
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 
 function required(name: string, fallback?: string): string {
   const v = process.env[name] ?? fallback;
@@ -69,9 +71,23 @@ export const env = {
   elevenLabsApiKey: process.env.ELEVENLABS_API_KEY ?? '',
   elevenLabsVoiceId: process.env.ELEVENLABS_VOICE_ID ?? '',
   falApiKey: process.env.FAL_API_KEY ?? '',
+  /** Cultural For You ranking + NSFW/non-cultural moderation (FastAPI) */
+  culturalAiBaseUrl: process.env.CULTURAL_AI_BASE_URL ?? '',
+  culturalAiServiceKey:
+    process.env.CULTURAL_AI_SERVICE_KEY ?? 'viseth-ai-service-dev-key-change-in-prod',
   corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:5173,http://localhost:3000')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
   seedAdminPassword: process.env.SEED_ADMIN_PASSWORD ?? 'VisethAdmin2026!',
+  /**
+   * Allow `Authorization: Bearer dev:<userId|role>` for Flutter/hackathon demos.
+   * Defaults on when payments are mock so Render staging works without Firebase client config.
+   */
+  allowDevAuth:
+    process.env.ALLOW_DEV_AUTH === 'true' ||
+    process.env.ALLOW_DEV_AUTH === '1' ||
+    process.env.TELEBIRR_MOCK === 'true' ||
+    process.env.PAYMENTS_MODE === 'mock' ||
+    !telebirrConfigured,
 };
