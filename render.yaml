@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: viseth-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: BASE_URL
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: QR_HMAC_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: TELEBIRR_MODE
+        value: sandbox
+      - key: TELEBIRR_FABRIC_APP_ID
+        sync: false
+      - key: TELEBIRR_APP_SECRET
+        sync: false
+      - key: TELEBIRR_MERCHANT_APP_ID
+        sync: false
+      - key: TELEBIRR_SHORT_CODE
+        sync: false
+      - key: TELEBIRR_PRIVATE_KEY
+        sync: false
+      - key: TELEBIRR_NOTIFY_URL
+        sync: false
+      - key: TELEBIRR_REDIRECT_URL
+        sync: false
+      - key: JOB_TOKEN
+        generateValue: true
+      - key: FIRECRAWL_API_KEY
+        sync: false
+      - key: WHISPERFLOW_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: FAL_API_KEY
+        sync: false
