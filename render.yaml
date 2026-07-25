@@ -6,8 +6,8 @@ services:
     plan: free
     region: oregon
     rootDir: visethbackend
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm run start
     healthCheckPath: /v1/health
     envVars:
       - key: NODE_ENV
