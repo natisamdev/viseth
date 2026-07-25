@@ -42,8 +42,8 @@ Notify URL (set after deploy): `{BASE_URL}/v1/webhooks/telebirr`
 
 In this monorepo, set **Root Directory** to `visethbackend` (already in `render.yaml`).
 
-1. Build: `npm install --include=dev && npm run build`  
-2. Start: `npm run start` (not yarn)  
+1. Build: `npm install` (runs `tsc` via postinstall → creates `dist/`)  
+2. Start: `npm start`  
 3. Health: `/v1/health`  
 4. Set `FIREBASE_SERVICE_ACCOUNT_JSON`, Telebirr vars (`TELEBIRR_PRIVATE_KEY` as PEM with `\n`), `BASE_URL`, JWT/QR secrets, `CORS_ORIGINS`  
 5. Whitelist Render outbound IP in Telebirr portal if sandbox requires it  
