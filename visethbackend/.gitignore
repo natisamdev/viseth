@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+uploads/
+# Firebase service account — never commit
+*firebase-adminsdk*.json
+firebase-service-account.json
+serviceAccountKey.json
+
+# Telebirr secrets
+secrets/
+*.pem
+telebirr_private.pem

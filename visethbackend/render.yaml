@@ -1,11 +1,9 @@
-# Repo-root Blueprint — service code lives in /visethbackend
 services:
   - type: web
     name: viseth-api
     runtime: node
     plan: free
     region: oregon
-    rootDir: visethbackend
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /v1/health
