@@ -6,7 +6,17 @@
 **Auth:** Firebase ID token (mobile) · Admin JWT (web admins)  
 **Date:** 2026-07-26  
 
-Paste this file into Cursor and say: *“Integrate the Viseth API using INTEGRATION_GUIDE.md as the source of truth.”*
+**Live API (hackathon / staging):** `https://viseth.onrender.com/v1`  
+**Origin:** `https://viseth.onrender.com`  
+**Health:** [https://viseth.onrender.com/v1/health](https://viseth.onrender.com/v1/health)
+
+| Team | Dedicated guide |
+|---|---|
+| Staff (gatekeeper + guide) | [`STAFF_INTEGRATION.md`](./STAFF_INTEGRATION.md) |
+| Attraction Place Admin | [`ATTRACTION_ADMIN_INTEGRATION.md`](./ATTRACTION_ADMIN_INTEGRATION.md) |
+| Platform Super Admin | [`PLATFORM_ADMIN_INTEGRATION.md`](./PLATFORM_ADMIN_INTEGRATION.md) |
+
+Paste into Cursor: *“Integrate the Viseth API using this guide. Live base: https://viseth.onrender.com/v1”*
 
 ---
 
@@ -16,7 +26,7 @@ Paste this file into Cursor and say: *“Integrate the Viseth API using INTEGRAT
 2. Never put Telebirr secrets, Firebase private keys, or JWT secrets in client code.  
 3. All money flows: **Custom API only** → Telebirr. Clients never call Telebirr directly.  
 4. After payment UI returns, **always poll** `GET /payments/{id}` or `POST /payments/{id}/sync` — never trust the browser return alone.  
-5. Base URL comes from env: `VISETH_API_BASE` (staging/production).
+5. Set `VISETH_API_BASE=https://viseth.onrender.com/v1` (Flutter `--dart-define`, Vite `VITE_VISETH_API_BASE`).
 
 ---
 
@@ -24,9 +34,11 @@ Paste this file into Cursor and say: *“Integrate the Viseth API using INTEGRAT
 
 | Env | Base URL |
 |---|---|
+| **Live (Render)** | **`https://viseth.onrender.com/v1`** |
 | Local | `http://localhost:8080/v1` |
-| Staging / Render | `https://<your-service>.onrender.com/v1` |
-| Production | `https://api.viseth.et/v1` (when DNS is set) |
+| Production DNS | `https://api.viseth.et/v1` (when ready) |
+
+All paths below are relative to that base (example: `GET https://viseth.onrender.com/v1/health`).
 
 Health: `GET {BASE}/health` → `{ "ok": true, "payments": "telebirr"|"mock" }`
 
@@ -417,8 +429,8 @@ Refund: `POST /payments/{transactionId}/refund` `{ "reason" }` (super_admin).
 | Merchant App ID | server env `TELEBIRR_MERCHANT_APP_ID` |
 | Fabric App ID | server env `TELEBIRR_FABRIC_APP_ID` |
 | ShortCode | server env `TELEBIRR_SHORT_CODE` |
-| Notify URL | `{BASE_URL}/v1/webhooks/telebirr` |
-| Redirect URL | `{BASE_URL}/v1/payments/return` or app deep link via checkout `returnUrl` |
+| Notify URL | `https://viseth.onrender.com/v1/webhooks/telebirr` |
+| Redirect URL | `https://viseth.onrender.com/v1/payments/return` or app deep link via checkout `returnUrl` |
 
 Client only needs: **`checkoutUrl`**, then **poll/sync**.
 
@@ -452,12 +464,13 @@ Demo attractions: `atr_adwa`, `atr_lalibela`, `atr_harar`, `atr_gondar`, `atr_ak
 
 ---
 
-## 11. Flutter integration checklist (Cursor prompt)
+## 11. Flutter customer checklist (Cursor prompt)
 
 ```
-Integrate Viseth Custom API into this Flutter app using INTEGRATION_GUIDE.md:
+Integrate Viseth Custom API into this Flutter app.
+Live base: https://viseth.onrender.com/v1
 
-1. Add dio/http client with baseUrl from VISETH_API_BASE
+1. Add dio/http client with VISETH_API_BASE=https://viseth.onrender.com/v1
 2. Attach Firebase ID token on every request; on 401 refresh once
 3. Replace mock AppState ticket purchase with POST /payments/tickets/checkout
 4. Open checkoutUrl in webview; on return call POST /payments/{id}/sync then GET /tickets/mine
@@ -470,8 +483,9 @@ Integrate Viseth Custom API into this Flutter app using INTEGRATION_GUIDE.md:
 ## 12. Attraction Admin (React) Cursor prompt
 
 ```
-Integrate Viseth Attraction Admin using INTEGRATION_GUIDE.md §6:
-- Login via POST /admin/auth/login
+Use ATTRACTION_ADMIN_INTEGRATION.md.
+Live base: https://viseth.onrender.com/v1
+- Login POST /admin/auth/login (place_admin)
 - Store accessToken; refresh via /admin/auth/refresh
 - Dashboard from /admin/attractions/{id}/summary
 - Never send attractionId overrides; use JWT scope
@@ -481,15 +495,17 @@ Integrate Viseth Attraction Admin using INTEGRATION_GUIDE.md §6:
 ## 13. Platform Admin Cursor prompt
 
 ```
-Integrate Viseth Platform Admin using INTEGRATION_GUIDE.md §7:
-- super_admin JWT login
+Use PLATFORM_ADMIN_INTEGRATION.md.
+Live base: https://viseth.onrender.com/v1
+- super_admin JWT login (superadmin@viseth.et)
 - Overview, attractions CRUD, place-admin create, moderation, Telebirr-aware payments list
 ```
 
 ## 14. Staff App Cursor prompt
 
 ```
-Integrate Viseth Staff App using INTEGRATION_GUIDE.md §5:
+Use STAFF_INTEGRATION.md.
+Live base: https://viseth.onrender.com/v1
 - Firebase auth → GET /staff/me
 - Gatekeeper: POST /visits/verify with camera QR + manual keycode
 - Guide: bookings inbox PATCH

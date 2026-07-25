@@ -7,9 +7,22 @@ Custom API for Customer, Staff, Attraction Admin, and Platform Admin.
 - **DB:** Firestore via Firebase Admin  
 - **Host:** Render (`render.yaml`)
 
+## Live API
+
+**Base:** `https://viseth.onrender.com/v1`  
+**Health:** https://viseth.onrender.com/v1/health  
+**Origin:** https://viseth.onrender.com/
+
+Set server env `BASE_URL=https://viseth.onrender.com` on Render.
+
 ## Docs for client teams (Cursor AI)
 
-→ **[INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md)** — full contract, prompts, Telebirr flow, every surface.
+| Team | Guide |
+|---|---|
+| All surfaces | [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) |
+| Staff (gatekeeper + guide) | [STAFF_INTEGRATION.md](./STAFF_INTEGRATION.md) |
+| Attraction Place Admin | [ATTRACTION_ADMIN_INTEGRATION.md](./ATTRACTION_ADMIN_INTEGRATION.md) |
+| Platform Super Admin | [PLATFORM_ADMIN_INTEGRATION.md](./PLATFORM_ADMIN_INTEGRATION.md) |
 
 ## Quick start
 
@@ -34,7 +47,7 @@ Health: `GET http://localhost:8080/v1/health`
 | `TELEBIRR_MODE` | `sandbox` \| `production` \| `simulate` |
 | `TELEBIRR_MOCK` | `true` = local mock checkout without Telebirr |
 
-Notify URL (set after deploy): `{BASE_URL}/v1/webhooks/telebirr`
+Notify URL: `https://viseth.onrender.com/v1/webhooks/telebirr`
 
 **Never commit** `secrets/`, `*.pem`, or service-account JSON.
 
@@ -53,10 +66,10 @@ In this monorepo, set **Root Directory** to `visethbackend` (already in `render.
 - Build must finish and exit. Never put `npm start` in Build (that hangs the deploy).
 - Start runs `tsx src/index.ts` — no `dist/` folder required.
 - Health: `/v1/health`
-- Set `BASE_URL` to your public Render URL (not localhost).  
-4. Set `FIREBASE_SERVICE_ACCOUNT_JSON`, Telebirr vars (`TELEBIRR_PRIVATE_KEY` as PEM with `\n`), `BASE_URL`, JWT/QR secrets, `CORS_ORIGINS`  
-5. Whitelist Render outbound IP in Telebirr portal if sandbox requires it  
-6. `npm run seed` once from this folder  
+- Set `BASE_URL=https://viseth.onrender.com`  
+- Set `FIREBASE_SERVICE_ACCOUNT_JSON`, Telebirr vars (`TELEBIRR_PRIVATE_KEY` as PEM with `\n`), JWT/QR secrets, `CORS_ORIGINS`  
+- Whitelist Render outbound IP in Telebirr portal if sandbox requires it  
+- `npm run seed` once from this folder against prod Firebase if needed  
 
 ## Seeded admins
 
