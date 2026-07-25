@@ -50,9 +50,9 @@ In this monorepo, set **Root Directory** to `visethbackend` (already in `render.
 | Build Command | `npm install` |
 | Start Command | `npm start` |
 
-- Build must **exit** after install/compile. Never put `npm start` in Build — that starts the server and hangs the deploy.
-- Start runs only `node dist/index.js` (dist is created by `postinstall` during `npm install`).
-- Health: `/v1/health`  
+- Build must finish and exit. Never put `npm start` in Build (that hangs the deploy).
+- Start runs `tsx src/index.ts` — no `dist/` folder required.
+- Health: `/v1/health`
 - Set `BASE_URL` to your public Render URL (not localhost).  
 4. Set `FIREBASE_SERVICE_ACCOUNT_JSON`, Telebirr vars (`TELEBIRR_PRIVATE_KEY` as PEM with `\n`), `BASE_URL`, JWT/QR secrets, `CORS_ORIGINS`  
 5. Whitelist Render outbound IP in Telebirr portal if sandbox requires it  

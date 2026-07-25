@@ -4,8 +4,8 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm ci || npm install
-    startCommand: npm run start
+    buildCommand: npm install
+    startCommand: npm start
     healthCheckPath: /v1/health
     envVars:
       - key: NODE_ENV
