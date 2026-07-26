@@ -18,21 +18,36 @@ export function createApp() {
   const app = express();
   app.set('trust proxy', 1);
 
+  // Explicit CORS first — Flutter web (localhost:*) must be able to call this API.
+  app.use((req, res, next) => {
+    const origin = req.header('Origin');
+    if (origin) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Vary', 'Origin');
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+    res.setHeader(
+      'Access-Control-Allow-Methods',
+      'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+    );
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Authorization, Content-Type, Accept, X-Client, Idempotency-Key, X-Request-Id',
+    );
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
+
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-  // Reflect any Origin (required for Flutter web on localhost → Render).
   app.use(
     cors({
       origin: true,
       credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: [
-        'Authorization',
-        'Content-Type',
-        'Accept',
-        'X-Client',
-        'Idempotency-Key',
-        'X-Request-Id',
-      ],
     }),
   );
   app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
