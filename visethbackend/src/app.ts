@@ -19,16 +19,20 @@ export function createApp() {
   app.set('trust proxy', 1);
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  // Reflect any Origin (required for Flutter web on localhost → Render).
   app.use(
     cors({
-      origin: (origin, cb) => {
-        if (!origin) return cb(null, true);
-        if (env.corsOrigins.includes(origin) || env.nodeEnv === 'development') {
-          return cb(null, true);
-        }
-        return cb(null, false);
-      },
+      origin: true,
       credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: [
+        'Authorization',
+        'Content-Type',
+        'Accept',
+        'X-Client',
+        'Idempotency-Key',
+        'X-Request-Id',
+      ],
     }),
   );
   app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
